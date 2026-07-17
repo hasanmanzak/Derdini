@@ -50,11 +50,25 @@ foreach ($file in $markdownFiles) {
 
 $instructions = Get-Content -Raw (Join-Path $root 'AGENTS.md')
 $memory = Get-Content -Raw (Join-Path $root '.ai/memory/project.md')
+$lineEndingVariants = @(
+    [pscustomobject]@{ Name = 'LF'; Value = "`n" }
+    [pscustomobject]@{ Name = 'CRLF'; Value = "`r`n" }
+)
 foreach ($label in @('Product purpose', 'Runtime and stack', 'Architecture', 'Product build command', 'Product test command')) {
-    Assert-True ($instructions -match "(?m)^- $([regex]::Escape($label)):\s+Not yet established\.$") "TEST-0003: AGENTS.md does not preserve unknown '$label'."
+    $pattern = "(?m)^- $([regex]::Escape($label)):\s+Not yet established\.\r?$"
+    foreach ($variant in $lineEndingVariants) {
+        $fixture = "- ${label}: Not yet established.$($variant.Value)"
+        Assert-True ($fixture -match $pattern) "TEST-0003: AGENTS.md pattern rejects the $($variant.Name) variant for '$label'."
+    }
+    Assert-True ($instructions -match $pattern) "TEST-0003: AGENTS.md does not preserve unknown '$label'."
 }
 foreach ($label in @('Purpose', 'Runtime and stack', 'Build command', 'Product test command')) {
-    Assert-True ($memory -match "(?m)^- $([regex]::Escape($label)):\s+Not yet established\.$") "TEST-0003: project memory does not preserve unknown '$label'."
+    $pattern = "(?m)^- $([regex]::Escape($label)):\s+Not yet established\.\r?$"
+    foreach ($variant in $lineEndingVariants) {
+        $fixture = "- ${label}: Not yet established.$($variant.Value)"
+        Assert-True ($fixture -match $pattern) "TEST-0003: project-memory pattern rejects the $($variant.Name) variant for '$label'."
+    }
+    Assert-True ($memory -match $pattern) "TEST-0003: project memory does not preserve unknown '$label'."
 }
 Assert-True (-not (Test-Path -LiteralPath (Join-Path $root '.ai/adoption/meandai-capabilities.json'))) 'TEST-0004: transient adoption manifest still exists.'
 
