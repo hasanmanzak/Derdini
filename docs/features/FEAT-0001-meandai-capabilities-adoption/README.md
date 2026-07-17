@@ -73,7 +73,7 @@ without inventing product behavior or technology.
 
 | ID | Slice | Tracking | Tests/run | Self-review/findings | Status |
 | --- | --- | --- | --- | --- | --- |
-| `FEAT-0001` | Repository-local protocol adoption | [Issue #2](https://github.com/hasanmanzak/Derdini/issues/2) | [TEST-0001–0004](test-cases.md), passed 2026-07-17 | Fresh-diff review and completion scan below | Complete |
+| `FEAT-0001` | Repository-local protocol adoption | [Issue #2](https://github.com/hasanmanzak/Derdini/issues/2) | [TEST-0001–0004](test-cases.md), passed 2026-07-17 | Fresh-diff review, completion scan, and resolved `FIND-0001` below | Complete |
 
 ## Self-review and completion scan
 
@@ -88,9 +88,41 @@ access was disabled. Local link targets were checked automatically.
 
 The initial scan found zero observations and therefore zero unresolved
 `Blocking` findings; no finding register or unchanged confirmation scan was
-needed. The dependency-ready queue was empty. The repository is locally
-eligible for the launcher-owned converged publication and is now `Waiting` for
-that publication; no commit or push identity is predicted here.
+needed. The dependency-ready queue was empty. The repository became locally
+eligible for the launcher-owned converged publication and entered `Waiting`.
+The launcher subsequently published [PR #1](https://github.com/hasanmanzak/Derdini/pull/1),
+which merged into `main` at
+`66dc71aa3676e9d0df314cca6685e991c52f3fa6`.
+
+### Post-merge verifier correction
+
+On 2026-07-17, merged-main verification at
+`66dc71aa3676e9d0df314cca6685e991c52f3fa6` produced the finding below.
+Shared confidence is `high`. Affected scope is the `TEST-0003` assertions in
+[`Verify-MeAndAIAdoption.ps1`](../../../tests/Verify-MeAndAIAdoption.ps1) over
+`AGENTS.md` and `.ai/memory/project.md`. Canonical links are
+[Issue #2](https://github.com/hasanmanzak/Derdini/issues/2),
+[PR #1](https://github.com/hasanmanzak/Derdini/pull/1), this `FEAT-0001`,
+[`DEC-0001`](../../decisions/DEC-0001-pinned-meandai-submodule.md), and
+[`TEST-0003`](test-cases.md).
+
+| ID | Classification | Disposition | Dependencies | Priority | Severity | Impact rank | Specific evidence | Impact rationale and recommended action | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `FIND-0001` | Verified defect - test portability | `Blocking` | `None` | `p1` | `medium` | `medium` | The LF-only line anchor rejected required statements in both affected files in the real CRLF checkout although the text was present; the corrected pattern accepts the real files and named LF/CRLF fixtures. | The false negative blocked required adoption closure evidence on Windows. Accept the optional carriage return and retain explicit LF/CRLF regression fixtures. | `Resolved` |
+
+The correction changes only verifier portability; it does not change adoption
+content or establish any product fact. Its focused evidence is a passing full
+`TEST-0001`–`TEST-0004` run under Windows PowerShell: `TEST-0003` exercises
+named LF and CRLF fixtures as well as the real CRLF checkout.
+
+The correction fresh-diff review covered the four changed consumer files,
+every tracked consumer entry, the protocol gitlink identity, local links,
+credential exposure, transient-manifest absence, test quality, documentation,
+and traceability. The external protocol tree remained excluded as pinned
+external content, while its exact gitlink commit was verified. `git diff
+--check` passed. The one budgeted post-remediation confirmation scan found zero
+new observations, zero unresolved `Blocking` findings, and an empty remediation
+queue.
 
 ## Definition of Done
 

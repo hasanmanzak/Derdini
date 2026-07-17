@@ -13,3 +13,9 @@ The launcher-owned adoption issue is
 [#2](https://github.com/hasanmanzak/Derdini/issues/2), and the adoption pull
 request is [#1](https://github.com/hasanmanzak/Derdini/pull/1). No open local
 adoption risk remained after the structural suite and bounded review.
+
+Post-merge verification on the merged `main` commit found and resolved
+`FIND-0001`, a CRLF portability defect in the consumer adoption verifier's
+`TEST-0003` line anchors. The correction did not change adoption content or
+establish any product fact; the full structural suite passed afterward in the
+standard Windows checkout.
