@@ -14,6 +14,13 @@ These instructions apply to the consuming repository.
 
 ## Project-specific rules
 
-Replace this section with the consuming repository's stack, architecture,
-commands, constraints, and stricter quality gates. Keep project facts outside
-the protocol submodule.
+- Product purpose: Not yet established.
+- Runtime and stack: Not yet established.
+- Architecture: Not yet established.
+- Product build command: Not yet established.
+- Product test command: Not yet established.
+- Until product tooling exists, validate protocol adoption with
+  `powershell -NoProfile -File tests/Verify-MeAndAIAdoption.ps1`.
+- Keep project facts and records outside the protocol submodule. Record newly
+  established product facts in `.ai/memory/project.md` and the relevant
+  feature or decision in the same change.

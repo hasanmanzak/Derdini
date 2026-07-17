@@ -1,8 +1,8 @@
 # Project-local AI Memory
 
-Scope: **replace with project name**<br>
-Last reviewed: **YYYY-MM-DD**<br>
-Pinned common protocol: **M.m.rev**
+Scope: **Derdini**<br>
+Last reviewed: **2026-07-17**<br>
+Pinned common protocol: **0.9.2**
 
 This memory belongs only to this consuming project. Read
 [project.md](project.md), then the newest relevant record in
