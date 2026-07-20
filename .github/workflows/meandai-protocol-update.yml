@@ -3,15 +3,43 @@ run-name: meAndAI AI capabilities lifecycle [${{ inputs.correlation_id || github
 
 env:
   PROTOCOL_REPOSITORY: hasanmanzak/meAndAI
-  BOOTSTRAP_PROTOCOL_TAG: v0.9.2
+  BOOTSTRAP_PROTOCOL_TAG: v0.12.5
 
 on:
   schedule:
     - cron: "17 5 * * *"
+  push:
+  pull_request:
+    types: [closed]
   workflow_dispatch:
     inputs:
       correlation_id:
         description: Launcher correlation identity
+        required: false
+        type: string
+      adoption_strategy:
+        description: Initial adoption strategy
+        required: false
+        default: Auto
+        type: choice
+        options:
+          - Auto
+          - FreshAdoption
+          - FullMigration
+          - HybridReconciliation
+          - CleanStart
+          - Abort
+      acknowledge_protocol_record_loss:
+        description: Acknowledge legacy governance record loss for CleanStart
+        required: false
+        default: false
+        type: boolean
+      expected_base_sha:
+        description: Exact consumer base commit authorized by the launcher
+        required: false
+        type: string
+      finalize_pull_request:
+        description: Merged managed pull request number to finalize
         required: false
         type: string
 
@@ -24,8 +52,29 @@ concurrency:
 
 jobs:
   propose-update:
+    needs: finalize-managed-merge
+    if: >-
+      ${{
+        needs.finalize-managed-merge.result == 'success' &&
+        (
+          github.event_name == 'schedule' ||
+          (github.event_name == 'workflow_dispatch' &&
+           inputs.finalize_pull_request == '') ||
+          (github.event_name == 'pull_request' &&
+           github.event.pull_request.merged == true &&
+           github.event.pull_request.head.repo.full_name == github.repository &&
+           (startsWith(github.event.pull_request.head.ref, 'automation/meandai-capabilities-v') ||
+            startsWith(github.event.pull_request.head.ref, 'automation/meandai-protocol-v') ||
+            startsWith(github.event.pull_request.head.ref, 'automation/meandai-capability-review-'))) ||
+          (github.event_name == 'push' &&
+           github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
+        )
+      }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
     steps:
       - name: Validate consumer updater credential
         shell: pwsh
@@ -65,7 +114,7 @@ jobs:
       - name: Check out consumer default branch
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           submodules: false
           token: ${{ secrets.MEANDAI_UPDATER_TOKEN }}
@@ -85,9 +134,46 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.MEANDAI_UPDATER_TOKEN }}
+          ISSUE_TOKEN: ${{ github.token }}
           PROTOCOL_TOKEN: ${{ secrets.MEANDAI_PROTOCOL_TOKEN || github.token }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_REF: ${{ github.ref }}
+          EVENT_SHA: ${{ github.sha }}
+          EVENT_PULL_REQUEST_HEAD: ${{ github.event.pull_request.head.ref }}
+          EVENT_PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          ADOPTION_STRATEGY: ${{ inputs.adoption_strategy || 'Auto' }}
+          ACKNOWLEDGE_PROTOCOL_RECORD_LOSS: ${{ inputs.acknowledge_protocol_record_loss || false }}
+          EXPECTED_BASE_SHA: ${{ inputs.expected_base_sha || '' }}
         run: |
+          if ($env:EVENT_SHA -cnotmatch '^[0-9a-f]{40}$') {
+            throw 'The workflow event does not identify one canonical consumer commit.'
+          }
+          $checkedOutHead = (& git rev-parse HEAD) -join ''
+          if ($LASTEXITCODE -ne 0 -or $checkedOutHead -cne $env:EVENT_SHA) {
+            throw 'The checked-out consumer commit does not match the immutable workflow event.'
+          }
+          if ($env:EXPECTED_BASE_SHA) {
+            if ($env:EXPECTED_BASE_SHA -cnotmatch '^[0-9a-f]{40}$') {
+              throw 'The launcher-supplied expected base commit is not canonical.'
+            }
+            if ($env:EVENT_SHA -cne $env:EXPECTED_BASE_SHA) {
+              throw 'The workflow event does not match the launcher-authorized base.'
+            }
+          }
+          if ($env:EVENT_NAME -ceq 'workflow_dispatch') {
+            $defaultRef = "refs/heads/$env:DEFAULT_BRANCH"
+            if ($env:EVENT_REF -cne $defaultRef) {
+              throw 'Initial adoption must be dispatched from the consumer default branch.'
+            }
+            $remoteLine = (& git ls-remote --heads origin $defaultRef) -join ''
+            if ($LASTEXITCODE -ne 0 -or
+                $remoteLine -cnotmatch '^(?<sha>[0-9a-f]{40})\s+refs/heads/.+$' -or
+                [string]$Matches.sha -cne $env:EVENT_SHA) {
+              throw 'The consumer default branch changed before lifecycle proposal mutation.'
+            }
+          }
+
           $modulePath = '.github/scripts/MeAndAI.ProtocolUpdate.psm1'
           $adapterPath = '.github/scripts/Invoke-MeAndAIProtocolUpdate.ps1'
           $moduleExists = Test-Path -LiteralPath $modulePath -PathType Leaf
@@ -97,9 +183,17 @@ jobs:
           }
 
           $protocolEntry = (& git ls-tree HEAD -- .ai/protocol) -join ''
+          $installedProtocolSha = if (
+            $protocolEntry -match '^160000\s+commit\s+(?<sha>[0-9a-f]{40})\s+'
+          ) {
+            [string]$Matches.sha
+          }
+          else {
+            ''
+          }
           $manifestExists = Test-Path -LiteralPath '.ai/adoption/meandai-capabilities.json'
           $completeLocalUpdater = $moduleExists -and $adapterExists -and
-            $protocolEntry -match '^160000\s+commit\s+[0-9a-f]{40}\s+' -and
+            -not [string]::IsNullOrEmpty($installedProtocolSha) -and
             -not $manifestExists
 
           $bootstrap = '.meandai-update-source/templates/project/.github/scripts/Invoke-MeAndAICapabilitiesBootstrap.ps1'
@@ -107,7 +201,219 @@ jobs:
             & "./$bootstrap" -TargetTag $env:BOOTSTRAP_PROTOCOL_TAG `
               -ValidateLocalUpdaterOnly
             & "./$adapterPath"
+
+            $sourceHead = (& git -C .meandai-update-source rev-parse HEAD) -join ''
+            if ($LASTEXITCODE -ne 0 -or $sourceHead -cnotmatch '^[0-9a-f]{40}$') {
+              throw 'The immutable protocol checkout does not identify one canonical commit.'
+            }
+            if ($installedProtocolSha -cne $sourceHead) {
+              Write-Host 'Ordinary protocol update must merge before semantic capability discovery.'
+              return
+            }
+
+            $discoveryContext = if (
+              $env:EVENT_NAME -ceq 'pull_request' -and
+              $env:EVENT_PULL_REQUEST_HEAD.StartsWith(
+                'automation/meandai-capabilities-v',
+                [StringComparison]::Ordinal
+              )
+            ) {
+              'PostFreshAdoption'
+            }
+            elseif (
+              $env:EVENT_NAME -ceq 'pull_request' -and
+              $env:EVENT_PULL_REQUEST_HEAD.StartsWith(
+                'automation/meandai-protocol-v',
+                [StringComparison]::Ordinal
+              )
+            ) {
+              'PostProtocolUpdate'
+            }
+            else {
+              'AlreadyCurrent'
+            }
+
+            $sourceVersion = $env:BOOTSTRAP_PROTOCOL_TAG
+            if ($discoveryContext -ceq 'PostProtocolUpdate') {
+              if ($env:EVENT_PULL_REQUEST_BASE_SHA -cnotmatch '^[0-9a-f]{40}$') {
+                throw 'The merged protocol update lacks one canonical base commit.'
+              }
+              $baseProtocolEntry = (& git ls-tree $env:EVENT_PULL_REQUEST_BASE_SHA -- .ai/protocol) -join ''
+              if ($LASTEXITCODE -ne 0 -or
+                  $baseProtocolEntry -cnotmatch '^160000\s+commit\s+(?<sha>[0-9a-f]{40})\s+') {
+                throw 'The merged protocol update lacks its prior protocol identity.'
+              }
+              $priorVersion = (& git -C .meandai-update-source show "$([string]$Matches.sha):VERSION") -join ''
+              if ($LASTEXITCODE -ne 0 -or
+                  $priorVersion.Trim() -cnotmatch '^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$') {
+                throw 'The merged protocol update prior source version is not canonical.'
+              }
+              $sourceVersion = "v$($priorVersion.Trim())"
+            }
+
+            $reviewRunner = '.meandai-update-source/scripts/Invoke-MeAndAICapabilityReview.ps1'
+            if ([string]::IsNullOrWhiteSpace($env:ISSUE_TOKEN)) {
+              throw 'The job-scoped capability review token is required.'
+            }
+            & "./$reviewRunner" `
+              -ConsumerRoot (Get-Location).Path `
+              -ProtocolRoot (Resolve-Path '.meandai-update-source').Path `
+              -Repository $env:GITHUB_REPOSITORY `
+              -DefaultBranch $env:DEFAULT_BRANCH `
+              -DefaultHead $env:EVENT_SHA `
+              -TargetVersion $env:BOOTSTRAP_PROTOCOL_TAG `
+              -DiscoveryContext $discoveryContext `
+              -SourceVersion $sourceVersion
+            # A merged semantic review also reaches this proposal job after
+            # finalization; the runner's completed-ledger path is an exact no-op.
           }
           else {
-            & "./$bootstrap" -TargetTag $env:BOOTSTRAP_PROTOCOL_TAG
+            if ($env:EVENT_NAME -cne 'workflow_dispatch') {
+              Write-Host 'Initial adoption waits for a launcher-owned or explicit manual dispatch with an adoption strategy.'
+              return
+            }
+            $acknowledgeLoss = $env:ACKNOWLEDGE_PROTOCOL_RECORD_LOSS -ceq 'true'
+            if ($acknowledgeLoss) {
+              & "./$bootstrap" -TargetTag $env:BOOTSTRAP_PROTOCOL_TAG `
+                -AdoptionStrategy $env:ADOPTION_STRATEGY `
+                -AcknowledgeProtocolRecordLoss
+            }
+            else {
+              & "./$bootstrap" -TargetTag $env:BOOTSTRAP_PROTOCOL_TAG `
+                -AdoptionStrategy $env:ADOPTION_STRATEGY
+            }
           }
+
+  finalize-managed-merge:
+    if: >-
+      ${{
+         (github.event_name == 'pull_request' &&
+         github.event.pull_request.merged == true &&
+         github.event.pull_request.head.repo.full_name == github.repository &&
+         (startsWith(github.event.pull_request.head.ref, 'automation/meandai-capabilities-v') ||
+           startsWith(github.event.pull_request.head.ref, 'automation/meandai-protocol-v') ||
+           startsWith(github.event.pull_request.head.ref, 'automation/meandai-capability-review-'))) ||
+        (github.event_name == 'push' &&
+         github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) ||
+        github.event_name == 'schedule' ||
+        github.event_name == 'workflow_dispatch'
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Check out consumer default branch
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          submodules: false
+          token: ${{ github.token }}
+          persist-credentials: true
+
+      - name: Check out protocol release inventory for finalization
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: hasanmanzak/meAndAI
+          token: ${{ secrets.MEANDAI_PROTOCOL_TOKEN || github.token }}
+          ref: ${{ env.BOOTSTRAP_PROTOCOL_TAG }}
+          path: .meandai-update-source
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Finalize merged managed proposal
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPDATER_TOKEN: ${{ secrets.MEANDAI_UPDATER_TOKEN }}
+          ISSUE_TOKEN: ${{ github.token }}
+          PROTOCOL_TOKEN: ${{ secrets.MEANDAI_PROTOCOL_TOKEN || github.token }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_PULL_REQUEST_HEAD: ${{ github.event.pull_request.head.ref }}
+          EVENT_PULL_REQUEST_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          RECOVERY_PULL_REQUEST_NUMBER: ${{ inputs.finalize_pull_request }}
+        run: |
+          $pullRequestNumber = if ($env:EVENT_NAME -ceq 'pull_request') {
+            $env:EVENT_PULL_REQUEST_NUMBER
+          }
+          else {
+            $env:RECOVERY_PULL_REQUEST_NUMBER
+          }
+          if (-not [string]::IsNullOrWhiteSpace([string]$pullRequestNumber) -and
+              [string]$pullRequestNumber -cnotmatch '^[1-9][0-9]*$') {
+            throw 'A canonical merged pull request number is required for finalization.'
+          }
+          $pullRequestHead = if ($env:EVENT_NAME -ceq 'pull_request') {
+            $env:EVENT_PULL_REQUEST_HEAD
+          }
+          elseif (-not [string]::IsNullOrWhiteSpace([string]$pullRequestNumber)) {
+            $pullJson = (& gh api --method GET "repos/$env:GITHUB_REPOSITORY/pulls/$pullRequestNumber") -join ''
+            if ($LASTEXITCODE -ne 0) {
+              throw 'Managed finalization pull request lookup failed.'
+            }
+            $pull = $pullJson | ConvertFrom-Json
+            if ([string]$pull.head.repo.full_name -cne $env:GITHUB_REPOSITORY) {
+              throw 'Managed finalization pull request is not consumer-owned.'
+            }
+            [string]$pull.head.ref
+          }
+          else {
+            ''
+          }
+          $semanticReview = $pullRequestHead.StartsWith(
+            'automation/meandai-capability-review-',
+            [StringComparison]::Ordinal
+          )
+          if ($semanticReview) {
+            if ([string]$pullRequestNumber -cnotmatch '^[1-9][0-9]*$') {
+              throw 'A canonical merged capability-review pull request number is required.'
+            }
+            if ([string]::IsNullOrWhiteSpace($env:UPDATER_TOKEN) -or
+                [string]::IsNullOrWhiteSpace($env:ISSUE_TOKEN)) {
+              throw 'Capability review finalization requires separate proposal and issue authorities.'
+            }
+            $env:GH_TOKEN = $env:UPDATER_TOKEN
+            $reviewRunner = '.meandai-update-source/scripts/Invoke-MeAndAICapabilityReview.ps1'
+            & "./$reviewRunner" `
+              -ConsumerRoot (Get-Location).Path `
+              -ProtocolRoot (Resolve-Path '.meandai-update-source').Path `
+              -Repository $env:GITHUB_REPOSITORY `
+              -DefaultBranch $env:DEFAULT_BRANCH `
+              -TargetVersion $env:BOOTSTRAP_PROTOCOL_TAG `
+              -DiscoveryContext AlreadyCurrent `
+              -SourceVersion $env:BOOTSTRAP_PROTOCOL_TAG `
+              -FinalizePullRequestNumber ([int]$pullRequestNumber)
+            return
+          }
+          $modulePath = '.github/scripts/MeAndAI.ProtocolUpdate.psm1'
+          $adapterPath = '.github/scripts/Invoke-MeAndAIProtocolUpdate.ps1'
+          $moduleExists = Test-Path -LiteralPath $modulePath -PathType Leaf
+          $adapterExists = Test-Path -LiteralPath $adapterPath -PathType Leaf
+          $protocolEntry = (& git ls-tree HEAD -- .ai/protocol) -join ''
+          $manifestExists = Test-Path -LiteralPath '.ai/adoption/meandai-capabilities.json'
+          $completeLocalUpdater = $moduleExists -and $adapterExists -and
+            $protocolEntry -match '^160000\s+commit\s+[0-9a-f]{40}\s+' -and
+            -not $manifestExists
+          if (-not $completeLocalUpdater) {
+            if (-not [string]::IsNullOrWhiteSpace([string]$pullRequestNumber)) {
+              throw 'A managed pull request cannot be finalized before the completed local updater is installed.'
+            }
+            Write-Host 'The completed updater is absent or incomplete; no managed merge recovery is required.'
+            return
+          }
+          if ([string]::IsNullOrWhiteSpace([string]$pullRequestNumber)) {
+            & "./$adapterPath" -RecoverMergedPullRequests
+            return
+          }
+          if ([string]$pullRequestNumber -cnotmatch '^[1-9][0-9]*$') {
+            throw 'A canonical merged pull request number is required for finalization.'
+          }
+          & "./$adapterPath" `
+            -FinalizeMergedPullRequest `
+            -PullRequestNumber ([int]$pullRequestNumber)
