@@ -16,11 +16,12 @@ integration must not imply product choices.
 
 ## Decision
 
-Reference `hasanmanzak/meAndAI` at exactly
-`b56ea19adeb8b34848fdd5b1e70eaaed831bf81d` as the `.ai/protocol` Git
-submodule. Keep consumer memory, feature and decision records, tests, and
-tracking templates outside that submodule. Use the installed, consumer-owned
-lifecycle workflow for reviewed compatible update proposals.
+Reference `hasanmanzak/meAndAI` through the `.ai/protocol` Git submodule. In
+each consumer revision, the `160000` gitlink supplies the exact protocol commit
+and the `VERSION` file inside that checkout supplies its canonical version.
+Keep consumer memory, feature and decision records, tests, and tracking
+templates outside that submodule. Use the installed, consumer-owned lifecycle
+workflow for reviewed compatible update proposals.
 
 ## Consequences
 

@@ -3,7 +3,6 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$expectedSha = 'b56ea19adeb8b34848fdd5b1e70eaaed831bf81d'
 $failures = [System.Collections.Generic.List[string]]::new()
 
 function Assert-True([bool]$Condition, [string]$Message) {
@@ -12,7 +11,33 @@ function Assert-True([bool]$Condition, [string]$Message) {
 
 $stage = & git -C $root ls-files --stage -- .ai/protocol
 Assert-True ($LASTEXITCODE -eq 0) 'TEST-0001: git index inspection failed.'
-Assert-True ($stage -match "^160000 $expectedSha 0\s+\.ai/protocol$") 'TEST-0001: protocol gitlink mode or commit differs.'
+$stageMatch = [regex]::Match(
+    (@($stage) -join "`n"),
+    '^160000 (?<sha>[0-9a-f]{40}) 0\s+\.ai/protocol$',
+    [Text.RegularExpressions.RegexOptions]::CultureInvariant
+)
+Assert-True $stageMatch.Success 'TEST-0001: protocol gitlink mode or commit differs.'
+$protocolSha = if ($stageMatch.Success) {
+    [string]$stageMatch.Groups['sha'].Value
+}
+else { '' }
+
+$protocolVersionPath = Join-Path $root '.ai/protocol/VERSION'
+$protocolVersionExists = Test-Path -LiteralPath $protocolVersionPath -PathType Leaf
+Assert-True $protocolVersionExists 'TEST-0001: protocol VERSION is missing.'
+if ($protocolVersionExists) {
+    $protocolVersion = [IO.File]::ReadAllText($protocolVersionPath).Trim()
+    Assert-True ($protocolVersion -match '^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$') 'TEST-0001: protocol VERSION is not canonical M.m.rev.'
+}
+
+$protocolCheckout = Join-Path $root '.ai/protocol'
+if (Test-Path -LiteralPath $protocolCheckout -PathType Container) {
+    $protocolHead = & git -C $protocolCheckout rev-parse HEAD
+    Assert-True ($LASTEXITCODE -eq 0) 'TEST-0001: initialized protocol checkout could not be inspected.'
+    if ($LASTEXITCODE -eq 0 -and $protocolSha) {
+        Assert-True (((@($protocolHead) -join '').Trim()) -ceq $protocolSha) 'TEST-0001: initialized protocol checkout differs from the gitlink.'
+    }
+}
 $modules = Get-Content -Raw (Join-Path $root '.gitmodules')
 Assert-True ($modules -match '(?m)^\s*path = \.ai/protocol\s*$') 'TEST-0001: submodule path is missing.'
 Assert-True ($modules -match '(?m)^\s*url = https://github\.com/hasanmanzak/meAndAI\.git\s*$') 'TEST-0001: canonical submodule URL is missing.'

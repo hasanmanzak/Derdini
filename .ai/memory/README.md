@@ -2,7 +2,9 @@
 
 Scope: **Derdini**<br>
 Last reviewed: **2026-07-17**<br>
-Pinned common protocol: **0.9.2**
+The common-protocol authority is the repository's `.ai/protocol` gitlink and
+the `VERSION` inside that exact checkout. Do not copy either value into memory
+as a separately maintained live fact.
 
 This memory belongs only to this consuming project. Read
 [project.md](project.md), then the newest relevant record in

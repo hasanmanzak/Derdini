@@ -8,7 +8,9 @@ Last verified: **2026-07-17**
 - Purpose: Not yet established.
 - Runtime and stack: Not yet established.
 - Default branch: `main` (verified from the local repository baseline).
-- Pinned common protocol: [meAndAI 0.9.2 at `b56ea19adeb8b34848fdd5b1e70eaaed831bf81d`](https://github.com/hasanmanzak/meAndAI/tree/b56ea19adeb8b34848fdd5b1e70eaaed831bf81d)
+- Common protocol integration authority: the `.ai/protocol` gitlink supplies
+  the current commit and the `VERSION` inside that exact checkout supplies its
+  canonical version. Do not copy a live tag or SHA.
 - Build command: Not yet established.
 - Product test command: Not yet established.
 - Adoption verification: `powershell -NoProfile -File tests/Verify-MeAndAIAdoption.ps1`
