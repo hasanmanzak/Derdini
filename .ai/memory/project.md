@@ -1,6 +1,6 @@
 # Project Snapshot
 
-Last verified: **2026-07-17**
+Last verified: **2026-07-22**
 
 ## Verified facts
 
@@ -14,24 +14,30 @@ Last verified: **2026-07-17**
 - Build command: Not yet established.
 - Product test command: Not yet established.
 - Adoption verification: `powershell -NoProfile -File tests/Verify-MeAndAIAdoption.ps1`
+  recursively discovers capability-owned suites and executes each suite in a
+  separate PowerShell process with runner-owned temporary state.
 
 ## Collaboration constraints
 
 - Follow [the repository instructions](../../AGENTS.md) and the pinned common
   protocol.
 - Keep credentials and secret values out of repository content and memory.
-- The launcher owns GitHub record reconciliation and publication; local agents
-  do not publish or change GitHub state during adoption completion.
+- The launcher owns lifecycle-record creation, reconciliation, and
+  finalization. An explicitly authorized local agent may update the exact
+  existing semantic-review branch and pull request; only the maintainer marks
+  it ready, approves it, or merges it.
 
 ## Engineering direction
 
 - Product architecture is not yet established.
 - Protocol integration is defined by
   [DEC-0001](../../docs/decisions/DEC-0001-pinned-meandai-submodule.md).
+- Test ownership and execution boundaries are defined by
+  [DEC-0002](../../docs/decisions/DEC-0002-minimal-capability-test-runner.md).
 
 ## Active context
 
-- Adoption feature:
-  [FEAT-0001](../../docs/features/FEAT-0001-meandai-capabilities-adoption/README.md)
-- Adoption issue: [#2](https://github.com/hasanmanzak/Derdini/issues/2)
-- Adoption pull request: [#1](https://github.com/hasanmanzak/Derdini/pull/1)
+- Capability feature:
+  [FEAT-0002](../../docs/features/FEAT-0002-test-architecture-capability/README.md)
+- Capability issue: [#13](https://github.com/hasanmanzak/Derdini/issues/13)
+- Capability pull request: [#14](https://github.com/hasanmanzak/Derdini/pull/14)

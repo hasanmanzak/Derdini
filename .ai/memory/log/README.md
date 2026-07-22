@@ -6,4 +6,5 @@ continuation point.
 
 | Date | Record |
 | --- | --- |
+| 2026-07-22 | [test architecture capability](2026-07-22-test-architecture-capability.md) |
 | 2026-07-17 | [meAndAI capabilities adoption](2026-07-17-meandai-adoption.md) |

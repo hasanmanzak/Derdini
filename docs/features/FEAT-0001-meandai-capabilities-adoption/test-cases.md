@@ -1,13 +1,16 @@
 # FEAT-0001 Test Scenarios
 
-Test implementation: [structural adoption suite](../../../tests/Verify-MeAndAIAdoption.ps1)
+Executable owner:
+[protocol-adoption suite](../../../tests/capabilities/protocol-adoption/protocol-adoption.tests.ps1).
+Stable entry point:
+[adoption verification runner](../../../tests/Verify-MeAndAIAdoption.ps1).
 
 | ID | Related slice | Scenario | Expected result | Level | Status | Automation |
 | --- | --- | --- | --- | --- | --- | --- |
-| `TEST-0001` | `FEAT-0001` | Protocol reference identity | `.ai/protocol` is a `160000` gitlink at the mandated commit and `.gitmodules` names the canonical repository | Structural | Passed | `Verify-MeAndAIAdoption.ps1` |
-| `TEST-0002` | `FEAT-0001` | Project-owned adoption graph | Feature, decision, memory, issue, PR, and test references exist and local Markdown links resolve | Structural | Passed | `Verify-MeAndAIAdoption.ps1` |
-| `TEST-0003` | `FEAT-0001` | Unknown product facts | Required product fields explicitly say `Not yet established`, LF and CRLF line-ending fixtures both satisfy the assertions, and no product behavior is invented | Structural | Passed | `Verify-MeAndAIAdoption.ps1` |
-| `TEST-0004` | `FEAT-0001` | Transient handoff completion | The adoption manifest is absent at completion | Structural | Passed | `Verify-MeAndAIAdoption.ps1` |
+| `TEST-0001` | `FEAT-0001` | Protocol reference identity | `.ai/protocol` is a `160000` gitlink at the mandated commit and `.gitmodules` names the canonical repository | Structural | Passed | `protocol-adoption.tests.ps1` |
+| `TEST-0002` | `FEAT-0001` | Project-owned adoption graph | Feature, decision, memory, issue, PR, and test references exist and local Markdown links resolve | Structural | Passed | `protocol-adoption.tests.ps1` |
+| `TEST-0003` | `FEAT-0001` | Unknown product facts | Required product fields explicitly say `Not yet established`, LF and CRLF line-ending fixtures both satisfy the assertions, and no product behavior is invented | Structural | Passed | `protocol-adoption.tests.ps1` |
+| `TEST-0004` | `FEAT-0001` | Transient handoff completion | The adoption manifest is absent at completion | Structural | Passed | `protocol-adoption.tests.ps1` |
 
 ## Evidence
 

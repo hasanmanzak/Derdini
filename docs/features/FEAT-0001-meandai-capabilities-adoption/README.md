@@ -98,7 +98,10 @@ which merged into `main` at
 
 On 2026-07-17, merged-main verification at
 `66dc71aa3676e9d0df314cca6685e991c52f3fa6` produced the finding below.
-Shared confidence is `high`. Affected scope is the `TEST-0003` assertions in
+Shared confidence is `high`. Affected scope is the `TEST-0003` assertions now
+owned by the
+[`protocol-adoption` suite](../../../tests/capabilities/protocol-adoption/protocol-adoption.tests.ps1)
+and executed through
 [`Verify-MeAndAIAdoption.ps1`](../../../tests/Verify-MeAndAIAdoption.ps1) over
 `AGENTS.md` and `.ai/memory/project.md`. Canonical links are
 [Issue #2](https://github.com/hasanmanzak/Derdini/issues/2),
