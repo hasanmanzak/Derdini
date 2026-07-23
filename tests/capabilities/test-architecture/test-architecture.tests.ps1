@@ -18,6 +18,91 @@ function Assert-Equal([string]$Actual, [string]$Expected, [string]$Message) {
     }
 }
 
+function Read-GitBlobBytes {
+    param(
+        [Parameter(Mandatory)][string]$RepositoryRoot,
+        [Parameter(Mandatory)][string]$ObjectSpec,
+        [ValidateRange(1, 1048576)][int]$MaximumBytes = 1048576
+    )
+
+    if ($ObjectSpec -cnotmatch '^(?:HEAD|):(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+$') {
+        throw "Unsupported Git object identity '$ObjectSpec'."
+    }
+
+    $git = (Get-Command git -CommandType Application -ErrorAction Stop |
+        Select-Object -First 1).Source
+    $startInfo = [Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $git
+    $startInfo.Arguments = "cat-file blob $ObjectSpec"
+    $startInfo.WorkingDirectory = $RepositoryRoot
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+
+    $process = [Diagnostics.Process]::new()
+    $process.StartInfo = $startInfo
+    $memory = [IO.MemoryStream]::new()
+    $started = $false
+    try {
+        if (-not $process.Start()) {
+            throw "Unable to read Git object '$ObjectSpec'."
+        }
+        $started = $true
+        $buffer = [byte[]]::new(81920)
+        while (($read = $process.StandardOutput.BaseStream.Read(
+            $buffer, 0, $buffer.Length
+        )) -gt 0) {
+            if ($memory.Length -gt ($MaximumBytes - $read)) {
+                throw "Git object '$ObjectSpec' exceeds its size limit."
+            }
+            $memory.Write($buffer, 0, $read)
+        }
+        $errorText = $process.StandardError.ReadToEnd()
+        $process.WaitForExit()
+        if ($process.ExitCode -ne 0) {
+            throw "Unable to read Git object '$ObjectSpec': $errorText"
+        }
+        return ,$memory.ToArray()
+    }
+    finally {
+        if ($started -and -not $process.HasExited) { $process.Kill() }
+        $memory.Dispose()
+        $process.Dispose()
+    }
+}
+
+function Read-CandidateLedgerBytes {
+    param(
+        [Parameter(Mandatory)][string]$RepositoryRoot,
+        [Parameter(Mandatory)][string]$LedgerPath
+    )
+
+    $relativePath = '.ai/meandai-capabilities-state.json'
+    $status = @(& git -C $RepositoryRoot status --porcelain=v1 `
+        --untracked-files=all -- $relativePath 2>&1 | ForEach-Object { [string]$_ })
+    if ($LASTEXITCODE -ne 0 -or $status.Count -gt 1) {
+        throw 'Unable to resolve one unambiguous capability-ledger candidate.'
+    }
+    if ($status.Count -eq 0) {
+        return ,(Read-GitBlobBytes -RepositoryRoot $RepositoryRoot `
+            -ObjectSpec "HEAD:$relativePath")
+    }
+
+    $state = $status[0]
+    if ($state.Length -lt 3 -or $state.Substring(3) -cne $relativePath) {
+        throw 'Capability-ledger status is noncanonical or ambiguous.'
+    }
+    if ($state.StartsWith('??') -or $state[1] -cne ' ') {
+        return ,[IO.File]::ReadAllBytes($LedgerPath)
+    }
+    if ($state[0] -cne ' ') {
+        return ,(Read-GitBlobBytes -RepositoryRoot $RepositoryRoot `
+            -ObjectSpec ":$relativePath")
+    }
+    throw 'Capability-ledger candidate state is unsupported.'
+}
+
 $hostPath = (Get-Process -Id $PID).Path
 $expectedSuites = @(
     'tests/capabilities/protocol-adoption/protocol-adoption.tests.ps1'
@@ -82,8 +167,10 @@ if (Test-Path -LiteralPath $ledgerPath -PathType Leaf) {
     Import-Module $catalogModule -Force
     $catalog = Import-MeAndAICapabilityCatalog `
         -IndexPath (Join-Path $root '.ai\protocol\capabilities\index.json')
+    $ledgerBytes = Read-CandidateLedgerBytes -RepositoryRoot $root `
+        -LedgerPath $ledgerPath
     $ledger = Import-MeAndAICapabilityLedger -Catalog $catalog `
-        -Bytes ([IO.File]::ReadAllBytes($ledgerPath))
+        -Bytes $ledgerBytes
     Assert-True (@($ledger.Entries).Count -eq 1) `
         'TEST-0007: terminal capability ledger does not contain one exact entry.'
     if (@($ledger.Entries).Count -eq 1) {
@@ -103,6 +190,20 @@ if (Test-Path -LiteralPath $ledgerPath -PathType Leaf) {
         Assert-True (@($entry.Evidence).Count -ge 3) `
             'TEST-0007: ledger lacks reviewed topology, traceability, and isolation evidence.'
     }
+
+    $ledgerText = [Text.UTF8Encoding]::new($false, $true).GetString($ledgerBytes)
+    $crlfBytes = [Text.UTF8Encoding]::new($false).GetBytes(
+        $ledgerText.Replace("`n", "`r`n")
+    )
+    $rejectedCrLf = $false
+    try {
+        [void](Import-MeAndAICapabilityLedger -Catalog $catalog -Bytes $crlfBytes)
+    }
+    catch {
+        $rejectedCrLf = $_.Exception.Message.Contains('must use LF line endings')
+    }
+    Assert-True $rejectedCrLf `
+        'TEST-0008: strict parser accepted non-LF committed ledger bytes.'
 }
 
 foreach ($path in @(
@@ -123,3 +224,4 @@ if ($failures.Count -gt 0) {
 Write-Output 'PASS: TEST-0005 deterministic capability-suite discovery'
 Write-Output 'PASS: TEST-0006 separate process and temporary-state cleanup'
 Write-Output 'PASS: TEST-0007 reviewed terminal capability evidence'
+Write-Output 'PASS: TEST-0008 canonical Git-blob ledger evidence'

@@ -1,6 +1,6 @@
 # Project Snapshot
 
-Last verified: **2026-07-22**
+Last verified: **2026-07-23**
 
 ## Verified facts
 
@@ -41,3 +41,7 @@ Last verified: **2026-07-22**
   [FEAT-0002](../../docs/features/FEAT-0002-test-architecture-capability/README.md)
 - Capability issue: [#13](https://github.com/hasanmanzak/Derdini/issues/13)
 - Capability pull request: [#14](https://github.com/hasanmanzak/Derdini/pull/14)
+- Windows canonical-ledger correction:
+  [BUG-0001 / issue #23](https://github.com/hasanmanzak/Derdini/issues/23)
+- Managed protocol update awaiting maintainer review:
+  [PR #22](https://github.com/hasanmanzak/Derdini/pull/22)

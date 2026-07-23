@@ -7,6 +7,7 @@
 | Target version | Not yet established |
 | Issue | [Derdini #13](https://github.com/hasanmanzak/Derdini/issues/13) |
 | Pull request | [Derdini #14](https://github.com/hasanmanzak/Derdini/pull/14) |
+| Active correction | [BUG-0001 / issue #23](https://github.com/hasanmanzak/Derdini/issues/23) |
 | Decision | [DEC-0002](../../decisions/DEC-0002-minimal-capability-test-runner.md) |
 | Tests | [Test scenarios](test-cases.md) |
 
@@ -39,6 +40,9 @@ review manifest is removed.
   record one reviewed `Conforming` ledger entry, and remove the manifest.
 - Update project-owned documentation and memory without inventing product
   purpose, runtime, architecture, build, or product-test facts.
+- Read a clean terminal ledger from its canonical committed Git blob so
+  Windows checkout transforms cannot create false byte drift; actual dirty
+  candidate bytes remain subject to the strict UTF-8/LF parser.
 
 ## Non-goals
 
@@ -114,6 +118,21 @@ review manifest is removed.
    cleanup, exact terminal ledger identity, and transient-manifest removal.
 5. Project documentation, links, and memory describe the reviewed structure
    without establishing unknown product facts.
+6. `TEST-0008` proves that clean committed ledger evidence is independent of
+   `core.autocrlf` worktree transforms and that real non-LF candidate bytes
+   remain invalid.
+
+## BUG-0001 correction
+
+Validation of the managed [v0.13.5 update draft](https://github.com/hasanmanzak/Derdini/pull/22)
+exposed a pre-existing Windows-only false failure. The committed capability
+ledger used canonical LF bytes, but `TEST-0007` passed the CRLF-smudged
+worktree copy to the protocol's intentionally strict parser. The bounded
+correction reads `HEAD:<ledger-path>` through a binary-safe, size-limited Git
+blob boundary when the ledger is clean, reads the index for a staged-only
+candidate, and keeps using raw worktree bytes for untracked or unstaged
+candidates. This preserves strict candidate validation without changing the
+managed updater proposal or weakening the protocol parser.
 
 ## Self-review and convergence scan
 
@@ -148,6 +167,7 @@ run rather than inferred.
 - [x] Documentation, links, ledger, and project memory current.
 - [x] Issue, pull request, feature, decision, and tests cross-linked.
 - [ ] Applicable local and hosted review gates pass.
+- [ ] BUG-0001 issue #23 and its correction pull request are merged.
 
 ## Post-merge release evidence
 
