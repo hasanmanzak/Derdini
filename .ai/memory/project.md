@@ -1,6 +1,6 @@
 # Project Snapshot
 
-Last verified: **2026-07-22**
+Last verified: **2026-07-24**
 
 ## Verified facts
 
@@ -16,6 +16,10 @@ Last verified: **2026-07-22**
 - Adoption verification: `powershell -NoProfile -File tests/Verify-MeAndAIAdoption.ps1`
   recursively discovers capability-owned suites and executes each suite in a
   separate PowerShell process with runner-owned temporary state.
+- Canonical capability-ledger parsing uses the repository-evidence module from
+  the exact pinned protocol checkout. The consumer-owned managed updater and
+  workflow remain exact projections of their upstream-owned pinned templates
+  rather than consumer-local implementations.
 
 ## Collaboration constraints
 
@@ -38,6 +42,8 @@ Last verified: **2026-07-22**
 ## Active context
 
 - Capability feature:
-  [FEAT-0002](../../docs/features/FEAT-0002-test-architecture-capability/README.md)
-- Capability issue: [#13](https://github.com/hasanmanzak/Derdini/issues/13)
-- Capability pull request: [#14](https://github.com/hasanmanzak/Derdini/pull/14)
+  [FEAT-0003](../../docs/features/FEAT-0003-semantic-capability-review/README.md)
+- Capability issue: [#27](https://github.com/hasanmanzak/Derdini/issues/27)
+- Capability pull request: [#28](https://github.com/hasanmanzak/Derdini/pull/28)
+- [FEAT-0002](../../docs/features/FEAT-0002-test-architecture-capability/README.md)
+  is complete; its leading terminal ledger entry remains unchanged.

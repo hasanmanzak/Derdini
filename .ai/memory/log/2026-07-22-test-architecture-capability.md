@@ -25,9 +25,9 @@ did not yet provide capability ownership or separate suite processes.
 - Product purpose, runtime, architecture, build command, and product test
   command remain explicitly unknown.
 
-## Continuation point
+## Completion
 
-Maintainer review and merge of [PR #14](https://github.com/hasanmanzak/Derdini/pull/14)
-remain the final gate. The managed lifecycle then owns closure of
-[issue #13](https://github.com/hasanmanzak/Derdini/issues/13) and cleanup of
-the exact automation branch.
+[PR #14](https://github.com/hasanmanzak/Derdini/pull/14) merged as
+`b7e1ae0e3604df902f10857be564f3042e1875de` on 2026-07-22. The managed
+lifecycle subsequently closed
+[issue #13](https://github.com/hasanmanzak/Derdini/issues/13) on 2026-07-23.

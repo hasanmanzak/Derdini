@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Classification | Feature |
-| Status | Ready for Review |
+| Status | Complete |
 | Target version | Not yet established |
 | Issue | [Derdini #13](https://github.com/hasanmanzak/Derdini/issues/13) |
 | Pull request | [Derdini #14](https://github.com/hasanmanzak/Derdini/pull/14) |
@@ -83,7 +83,7 @@ review manifest is removed.
 
 | ID | Slice | Tracking | Tests/run | Self-review/findings | Status |
 | --- | --- | --- | --- | --- | --- |
-| `SUBF-0001` | Minimal capability-owned test topology and reviewed terminal evidence | [Issue #13](https://github.com/hasanmanzak/Derdini/issues/13) | [TEST-0005 through TEST-0007](test-cases.md) | Fresh-diff and full-project review complete; `FIND-0002` resolved; confirmation found no blockers | Ready for Review |
+| `SUBF-0001` | Minimal capability-owned test topology and reviewed terminal evidence | [Issue #13](https://github.com/hasanmanzak/Derdini/issues/13) | [TEST-0005 through TEST-0007](test-cases.md) | Fresh-diff and full-project review complete; `FIND-0002` resolved; confirmation found no blockers | Complete |
 
 ## Decisions and relationships
 
@@ -147,14 +147,14 @@ run rather than inferred.
 - [x] No unresolved `Blocking` finding.
 - [x] Documentation, links, ledger, and project memory current.
 - [x] Issue, pull request, feature, decision, and tests cross-linked.
-- [ ] Applicable local and hosted review gates pass.
+- [x] Applicable local and hosted review gates pass.
 
 ## Post-merge release evidence
 
 | Field | Evidence |
 | --- | --- |
 | External evidence authority | [Issue #13](https://github.com/hasanmanzak/Derdini/issues/13) |
-| Release authority | `Pending`; this governance-only consumer change does not currently require a product release |
-| Release identifier | `Pending` |
-| Target commit | `Pending` |
-| Verification evidence | `Pending` |
+| Release authority | N/A; this governance-only consumer change required no product release |
+| Release identifier | N/A |
+| Target commit | [`b7e1ae0e3604df902f10857be564f3042e1875de`](https://github.com/hasanmanzak/Derdini/commit/b7e1ae0e3604df902f10857be564f3042e1875de) |
+| Verification evidence | PR #14 merged on 2026-07-22 and the managed lifecycle closed issue #13 on 2026-07-23 |

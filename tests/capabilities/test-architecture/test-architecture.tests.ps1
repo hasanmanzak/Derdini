@@ -20,6 +20,7 @@ function Assert-Equal([string]$Actual, [string]$Expected, [string]$Message) {
 
 $hostPath = (Get-Process -Id $PID).Path
 $expectedSuites = @(
+    'tests/capabilities/canonical-repository-evidence/canonical-repository-evidence.tests.ps1'
     'tests/capabilities/protocol-adoption/protocol-adoption.tests.ps1'
     'tests/capabilities/test-architecture/test-architecture.tests.ps1'
 )
@@ -79,14 +80,24 @@ Assert-True (-not (Test-Path -LiteralPath $manifestPath)) `
 
 if (Test-Path -LiteralPath $ledgerPath -PathType Leaf) {
     $catalogModule = Join-Path $root '.ai\protocol\scripts\MeAndAI.CapabilityCatalog.psm1'
+    $repositoryEvidenceModule = Join-Path $root `
+        '.ai\protocol\scripts\MeAndAI.RepositoryEvidence.psm1'
     Import-Module $catalogModule -Force
+    Import-Module $repositoryEvidenceModule -Force
     $catalog = Import-MeAndAICapabilityCatalog `
         -IndexPath (Join-Path $root '.ai\protocol\capabilities\index.json')
+    $head = ((& git -C $root rev-parse HEAD) -join '').Trim()
+    Assert-True ($LASTEXITCODE -eq 0 -and $head -cmatch '^[0-9a-f]{40}$') `
+        'TEST-0007: repository HEAD identity could not be resolved.'
+    $ledgerEvidence = Get-MeAndAIRepositoryEvidence `
+        -RepositoryRoot $root `
+        -RelativePath '.ai/meandai-capabilities-state.json' `
+        -Head $head
     $ledger = Import-MeAndAICapabilityLedger -Catalog $catalog `
-        -Bytes ([IO.File]::ReadAllBytes($ledgerPath))
-    Assert-True (@($ledger.Entries).Count -eq 1) `
-        'TEST-0007: terminal capability ledger does not contain one exact entry.'
-    if (@($ledger.Entries).Count -eq 1) {
+        -Bytes ([byte[]]$ledgerEvidence.Bytes)
+    Assert-True (@($ledger.Entries).Count -ge 1) `
+        'TEST-0007: terminal capability ledger lacks its leading entry.'
+    if (@($ledger.Entries).Count -ge 1) {
         $entry = $ledger.Entries[0]
         Assert-Equal ([string]$entry.Slug) 'test-architecture' `
             'TEST-0007: ledger capability slug differs.'
