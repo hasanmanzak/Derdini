@@ -9,7 +9,7 @@ and
 | --- | --- | --- | --- | --- | --- | --- |
 | `TEST-0005` | `SUBF-0001` | Canonical recursive capability-suite discovery | The stable runner lists the repository's exact normalized suite identities once in ordinal order; the discovery boundary fails closed on empty, linked, escaping, noncanonical, or duplicate candidates | Structural / integration and reviewed boundary | Passed | `test-architecture.tests.ps1` plus runner review |
 | `TEST-0006` | `SUBF-0001` | Separate suite process and temporary-state isolation | Each suite observes a different runner PID, receives an initially empty unique temporary root, and runner cleanup removes that root after execution | Integration / cleanup | Passed | Runner plus `test-architecture.tests.ps1` |
-| `TEST-0007` | `SUBF-0001` | Reviewed terminal capability evidence | The canonical ledger contains one exact `Conforming` assessment for the immutable definition and PR #14 review identity, project records resolve, and the transient manifest is absent | Structural / lifecycle | Passed | `test-architecture.tests.ps1` |
+| `TEST-0007` | `SUBF-0001` | Reviewed terminal capability evidence | The canonical ledger retains the exact leading `Conforming` assessment for the immutable definition and PR #14 review identity, project records resolve, and the transient manifest is absent | Structural / lifecycle | Passed | `test-architecture.tests.ps1` |
 
 ## Required coverage
 
